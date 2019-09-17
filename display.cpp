@@ -1,52 +1,62 @@
 #include <iostream>
 #include <cstdint>
+#include <SDL2/SDL.h>
 using namespace std;
 
-#define W 64
-#define H 32
+#define W 320
+#define H 240
 
-uint8_t SCREEN[W][H] = {0,0};
+int main(int argc, char *argv[]){
+    Uint32 pixels[W * H] = {
+        0xFFFF0000
+    };
 
-string buildString(uint8_t *bytes, uint8_t size){
-    string character = string("");
-    for(int i=0; i<size; i++, ++bytes){
-        uint8_t nibble = (*bytes & 0xf0) >> 4;
-        for(int j = 3; j >= 0; j--) character += " *"[(nibble >> j) & 0x01]; character += "\n";
-    }
-    return character;
-}
-
-int main(){
-    uint8_t characters[10][5] = {
-    {0xF0, 0x90, 0x90, 0x90, 0xF0},
-    {0x20, 0x60, 0x20, 0x20, 0x70},
-    {0xF0, 0x10, 0xF0, 0x80, 0xF0},
-    {0xF0, 0x10, 0xF0, 0x10, 0xF0},
-    {0x90, 0x90, 0xF0, 0x10, 0x10},
-    {0xF0, 0x80, 0xF0, 0x10, 0xF0},
-    {0xF0, 0x80, 0xF0, 0x90, 0xF0},
-    {0xF0, 0x10, 0x20, 0x40, 0x40},
-    {0xF0, 0x90, 0xF0, 0x90, 0xF0},
-    {0xF0, 0x90, 0xF0, 0x10, 0xF0}};
+    SDL_Rect rect;
     
-    /*cout << buildString(characters[0], sizeof(characters[0])) << endl;
-    cout << buildString(characters[1], sizeof(characters[1])) << endl;
-    cout << buildString(characters[2], sizeof(characters[2])) << endl;
-    cout << buildString(characters[3], sizeof(characters[3])) << endl;*/
+    if(SDL_Init(SDL_INIT_VIDEO) != 0){
+        cout << "Error initializing SDL" << endl;
+        return 1;
+    };
 
-    SCREEN[24][0] = 0xBA;
-    SCREEN[24][1] = 0x7C;
-    SCREEN[24][2] = 0xD6;
-    SCREEN[24][3] = 0xFE;
-    SCREEN[24][4] = 0x54;
-    SCREEN[24][5] = 0xAA;
+    SDL_Window* window = SDL_CreateWindow("testerino", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, W, H, SDL_WINDOW_RESIZABLE);
+    if(window == nullptr) {
+        cout << "Error initializing SDL window" << endl;
+        SDL_Quit();
+        return 1;
+    }
 
-    for(uint8_t i=0; i < H; i++){
-        for(uint8_t j=0; j < W; j+=8){
-            uint8_t byte = SCREEN[j][i];
-            for(uint8_t bit = 8; bit > 0; bit--) cout << "-*"[(byte >> bit) & 0x01];
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    if(renderer == nullptr){
+        cout << "Error initializing renderer" << endl;
+        SDL_Quit();
+        return 1;
+    }
+
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, W, H);
+    if(texture == nullptr){
+        cout << "Error initializing texture" << endl;
+        SDL_Quit();
+        return 1;
+    }
+
+    memset(pixels, 255, W * H * sizeof(Uint32));
+
+    SDL_Event event;
+    bool quit = false;
+    while (!quit){
+        SDL_UpdateTexture(texture, nullptr, pixels, W);
+        SDL_WaitEvent(&event);
+        switch(event.type){
+            case SDL_MOUSEMOTION:
+                pixels[0] = 0x0;
+                break;
+            case SDL_QUIT:
+                quit = 1;
+                break;
         }
-        cout << endl;
+
+        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+        SDL_RenderPresent(renderer);
     }
     return 0;
 }
