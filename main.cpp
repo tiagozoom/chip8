@@ -10,6 +10,8 @@ using namespace std;
 #define PROGRAM_START 0x200;
 #define ETI_PROGRAMS 0x600;
 #define INITIAL_LOCATION 0xFFF;
+#define W 64
+#define H 32
 
 union Opcode { 
     uint16_t inst;
@@ -25,7 +27,7 @@ union Opcode {
     };
 };
 
-uint8_t VRAM[4096], SP;
+uint8_t VRAM[4096], DisplayMemory[W * H] = {0x0}, SP;
 uint16_t STACK[16];
 
 class CPU{
@@ -41,7 +43,9 @@ class CPU{
         void inst_0nnn(){}
 
         //Clear display
-        void inst_00E0(Opcode opcode){}
+        void inst_00E0(Opcode opcode){
+            memset(DisplayMemory, 0x0, W * H);
+        }
 
         void inst_00EE(Opcode opcode){
             PC = STACK[SP];
@@ -137,7 +141,18 @@ class CPU{
         }
 
         //Display and keyboard related functions
-        void inst_Dxyn(Opcode opcode){}
+        void inst_Dxyn(Opcode opcode){
+            for(int index = 0; index < opcode.n; index++){
+                uint8_t byte = VRAM[I + index];
+                uint16_t vx = V[opcode.x] % W;
+                uint16_t vy = (V[opcode.y] % H) * W;
+                uint16_t spriteIndex = (vx + vy + index) % (W * H);
+                uint8_t oldByte = DisplayMemory[spriteIndex];
+                VF = (byte ^ oldByte) != oldByte ? 1 : 0;
+                DisplayMemory[spriteIndex] = byte;
+            }
+        }
+
         void inst_Ex9E(Opcode opcode){}
         void inst_ExA1(Opcode opcode){}
         void inst_Fx07(Opcode opcode){}
@@ -219,10 +234,41 @@ void LoadFile(string filename, uint8_t* buffer){
 int main(int argc, char* argv[]){
     CPU cpu;
     cpu.PC = 0x200;
-    LoadFile("test_opcode.ch8", &VRAM[0x200]);
+    //LoadFile("test_opcode.ch8", &VRAM[0x200]);
     Opcode opcode;
+    cpu.V[0x0] = 0x3F;
+    cpu.V[0x1] = 0x1F;
+
+    VRAM[0x1] = 0xAA;
+    VRAM[0x2] = 0xAA;
+    VRAM[0x3] = 0xAA;
+    VRAM[0x4] = 0xAA;
+    VRAM[0x5] = 0xAA;
+    VRAM[0x6] = 0xAA;
+    VRAM[0x7] = 0xAA;
+    VRAM[0x8] = 0xAA;
+    VRAM[0x9] = 0xAA;
+    VRAM[0xA] = 0xAA;
+    VRAM[0xB] = 0xAA;
+    VRAM[0xC] = 0xAA;
+    VRAM[0xD] = 0xAA;
+    VRAM[0xE] = 0xAA;
+    VRAM[0xF] = 0xAA;
+
+    VRAM[cpu.PC] = 0xA0;
+    VRAM[cpu.PC + 1] = 0x1;
     opcode.inst = cpu.readOpcode(VRAM);
     cpu.execute(opcode);
-    cout << opcode.inst << endl;
+    VRAM[cpu.PC + 2] = 0xD0;
+    VRAM[cpu.PC + 3] = 0x1F;
+    cpu.PC += 2;
+    opcode.inst = cpu.readOpcode(VRAM);
+    cpu.execute(opcode);
+
+
+    for(int i = 0; i < H * W; i++){
+            cout << hex << int(DisplayMemory[i]) ;
+    }
+
     return 0;
 }
