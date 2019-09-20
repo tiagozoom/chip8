@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <string>
+#include <SDL2/SDL.h>
+
 using namespace std;
 
 #define INIT_RESERVED_INTERPRETER 0x000;
@@ -25,6 +27,65 @@ union Opcode {
         };
         uint8_t kk;
     };
+};
+
+class DisplayController{
+    private:
+        SDL_Rect rect;
+        SDL_Window* window ;
+        SDL_Renderer* renderer;
+        SDL_Texture* texture;
+        SDL_Event event;
+    public: 
+        DisplayController(){
+            if(SDL_Init(SDL_INIT_VIDEO) != 0){
+                cout << "Error initializing SDL" << endl;
+                return;
+            };
+
+            window = SDL_CreateWindow("testerino", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_RESIZABLE);
+            if(window == nullptr) {
+                cout << "Error initializing SDL window" << endl;
+                SDL_Quit();
+                return;
+            }
+
+            renderer = SDL_CreateRenderer(window, -1, 0);
+            if(renderer == nullptr){
+                cout << "Error initializing renderer" << endl;
+                SDL_Quit();
+                return;
+            }
+
+            texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, W, H);
+            if(texture == nullptr){
+                cout << "Error initializing texture" << endl;
+                SDL_Quit();
+                return;
+            }
+        }
+
+        void show(uint8_t* displayMemory){
+            Uint32 pixels[W * H];
+            memset(pixels, 255, W * H * sizeof(Uint32));
+            /*for(int width = 64, j = 0; j < W * H; j++, width += 64){
+                for(int i = 7; i >= 0; i--){
+                       pixels[7 - i + width] = ((displayMemory[j] >> i) & 0x1) ? 0xFF000000 : 0xFFFFFFFF ;
+                }
+            }*/
+            bool quit = false;
+            while (!quit){
+                SDL_UpdateTexture(texture, nullptr, pixels, W * 4);
+                SDL_WaitEvent(&event);
+                SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+                SDL_RenderPresent(renderer);
+                switch(event.type){
+                    case SDL_QUIT:
+                        quit = 1;
+                        break;
+                }
+            }
+        }
 };
 
 uint8_t VRAM[4096], DisplayMemory[W * H] = {0x0}, SP;
@@ -145,8 +206,8 @@ class CPU{
             for(int index = 0; index < opcode.n; index++){
                 uint8_t byte = VRAM[I + index];
                 uint16_t vx = V[opcode.x] % W;
-                uint16_t vy = (V[opcode.y] % H) * W;
-                uint16_t spriteIndex = (vx + vy + index) % (W * H);
+                uint16_t vy = ((V[opcode.y] + index) % H) * W;
+                uint16_t spriteIndex = (vx + vy) % (W * H);
                 uint8_t oldByte = DisplayMemory[spriteIndex];
                 VF = (byte ^ oldByte) != oldByte ? 1 : 0;
                 DisplayMemory[spriteIndex] = byte;
@@ -236,18 +297,18 @@ int main(int argc, char* argv[]){
     cpu.PC = 0x200;
     //LoadFile("test_opcode.ch8", &VRAM[0x200]);
     Opcode opcode;
-    cpu.V[0x0] = 0x3F;
+    cpu.V[0x0] = 0x0;
     cpu.V[0x1] = 0x1F;
 
-    VRAM[0x1] = 0xAA;
-    VRAM[0x2] = 0xAA;
-    VRAM[0x3] = 0xAA;
-    VRAM[0x4] = 0xAA;
-    VRAM[0x5] = 0xAA;
-    VRAM[0x6] = 0xAA;
-    VRAM[0x7] = 0xAA;
-    VRAM[0x8] = 0xAA;
-    VRAM[0x9] = 0xAA;
+    VRAM[0x1] = 0x20;
+    VRAM[0x2] = 0x20;
+    VRAM[0x3] = 0x20;
+    VRAM[0x4] = 0x20;
+    VRAM[0x5] = 0x20;
+    VRAM[0x6] = 0x20;
+    VRAM[0x7] = 0xF8;
+    VRAM[0x8] = 0x70;
+    VRAM[0x9] = 0x20;
     VRAM[0xA] = 0xAA;
     VRAM[0xB] = 0xAA;
     VRAM[0xC] = 0xAA;
@@ -260,15 +321,20 @@ int main(int argc, char* argv[]){
     opcode.inst = cpu.readOpcode(VRAM);
     cpu.execute(opcode);
     VRAM[cpu.PC + 2] = 0xD0;
-    VRAM[cpu.PC + 3] = 0x1F;
+    VRAM[cpu.PC + 3] = 0x19;
     cpu.PC += 2;
     opcode.inst = cpu.readOpcode(VRAM);
     cpu.execute(opcode);
 
+    DisplayController displayController;
+    displayController.show(DisplayMemory);
 
-    for(int i = 0; i < H * W; i++){
-            cout << hex << int(DisplayMemory[i]) ;
-    }
+    /*for(int i = 0; i < H; i++){
+        for(int j = 0; j < W; j++){
+            cout << hex << int(DisplayMemory[j + (i * W)]);
+        }
+        cout << endl;
+    }*/
 
     return 0;
 }
