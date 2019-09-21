@@ -15,6 +15,7 @@ using namespace std;
 #define W 64
 #define H 32
 
+Uint32 pixels[ H * W ];
 union Opcode { 
     uint16_t inst;
     union{
@@ -43,7 +44,7 @@ class DisplayController{
                 return;
             };
 
-            window = SDL_CreateWindow("testerino", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_RESIZABLE);
+            window = SDL_CreateWindow("testerino", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, W * 4 * 2, H * 3 * 2, SDL_WINDOW_RESIZABLE);
             if(window == nullptr) {
                 cout << "Error initializing SDL window" << endl;
                 SDL_Quit();
@@ -66,13 +67,6 @@ class DisplayController{
         }
 
         void show(uint8_t* displayMemory){
-            Uint32 pixels[W * H];
-            memset(pixels, 255, W * H * sizeof(Uint32));
-            /*for(int width = 64, j = 0; j < W * H; j++, width += 64){
-                for(int i = 7; i >= 0; i--){
-                       pixels[7 - i + width] = ((displayMemory[j] >> i) & 0x1) ? 0xFF000000 : 0xFFFFFFFF ;
-                }
-            }*/
             bool quit = false;
             while (!quit){
                 SDL_UpdateTexture(texture, nullptr, pixels, W * 4);
@@ -105,7 +99,7 @@ class CPU{
 
         //Clear display
         void inst_00E0(Opcode opcode){
-            memset(DisplayMemory, 0x0, W * H);
+            memset(pixels, 0xFF, W * H * sizeof(Uint32));
         }
 
         void inst_00EE(Opcode opcode){
@@ -210,7 +204,10 @@ class CPU{
                 uint16_t spriteIndex = (vx + vy) % (W * H);
                 uint8_t oldByte = DisplayMemory[spriteIndex];
                 VF = (byte ^ oldByte) != oldByte ? 1 : 0;
-                DisplayMemory[spriteIndex] = byte;
+                //DisplayMemory[spriteIndex] = byte;
+                for(int i = 7; i >= 0; i--){
+                       pixels[(7 - i + spriteIndex) % (W * H)] = ((byte >> i) & 0x1) ? 0xFF000000 : 0xFFFFFFFF ;
+                }
             }
         }
 
@@ -297,44 +294,43 @@ int main(int argc, char* argv[]){
     cpu.PC = 0x200;
     //LoadFile("test_opcode.ch8", &VRAM[0x200]);
     Opcode opcode;
-    cpu.V[0x0] = 0x0;
-    cpu.V[0x1] = 0x1F;
+    cpu.V[0x0] = 0x3;
+    cpu.V[0x1] = 0x0;
 
-    VRAM[0x1] = 0x20;
-    VRAM[0x2] = 0x20;
-    VRAM[0x3] = 0x20;
-    VRAM[0x4] = 0x20;
-    VRAM[0x5] = 0x20;
-    VRAM[0x6] = 0x20;
-    VRAM[0x7] = 0xF8;
-    VRAM[0x8] = 0x70;
-    VRAM[0x9] = 0x20;
+    VRAM[0x1] = 0x3C;
+    VRAM[0x2] = 0x42;
+    VRAM[0x3] = 0x81;
+    VRAM[0x4] = 0xA5;
+    VRAM[0x5] = 0x81;
+    VRAM[0x6] = 0xA5;
+    VRAM[0x7] = 0x99;
+    VRAM[0x8] = 0x42;
+    VRAM[0x9] = 0x3C;
     VRAM[0xA] = 0xAA;
     VRAM[0xB] = 0xAA;
     VRAM[0xC] = 0xAA;
     VRAM[0xD] = 0xAA;
-    VRAM[0xE] = 0xAA;
-    VRAM[0xF] = 0xAA;
 
     VRAM[cpu.PC] = 0xA0;
     VRAM[cpu.PC + 1] = 0x1;
     opcode.inst = cpu.readOpcode(VRAM);
     cpu.execute(opcode);
-    VRAM[cpu.PC + 2] = 0xD0;
-    VRAM[cpu.PC + 3] = 0x19;
+
     cpu.PC += 2;
+
+    VRAM[cpu.PC] = 0x00;
+    VRAM[cpu.PC + 1] = 0xE0;
+    opcode.inst = cpu.readOpcode(VRAM);
+    cpu.execute(opcode);
+
+    cpu.PC += 2;
+
+    VRAM[cpu.PC] = 0xD0;
+    VRAM[cpu.PC + 1] = 0x19;
     opcode.inst = cpu.readOpcode(VRAM);
     cpu.execute(opcode);
 
     DisplayController displayController;
     displayController.show(DisplayMemory);
-
-    /*for(int i = 0; i < H; i++){
-        for(int j = 0; j < W; j++){
-            cout << hex << int(DisplayMemory[j + (i * W)]);
-        }
-        cout << endl;
-    }*/
-
     return 0;
 }
