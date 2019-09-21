@@ -14,8 +14,9 @@ using namespace std;
 #define INITIAL_LOCATION 0xFFF;
 #define W 64
 #define H 32
+#define DISPLAY_SIZE W * H
 
-Uint32 pixels[ H * W ];
+Uint32 pixels[DISPLAY_SIZE];
 union Opcode { 
     uint16_t inst;
     union{
@@ -66,7 +67,7 @@ class DisplayController{
             }
         }
 
-        void show(uint8_t* displayMemory){
+        void show(Uint32* pixels){
             bool quit = false;
             while (!quit){
                 SDL_UpdateTexture(texture, nullptr, pixels, W * 4);
@@ -82,7 +83,7 @@ class DisplayController{
         }
 };
 
-uint8_t VRAM[4096], DisplayMemory[W * H] = {0x0}, SP;
+uint8_t VRAM[4096], DisplayMemory[DISPLAY_SIZE] = {0x0}, SP;
 uint16_t STACK[16];
 
 class CPU{
@@ -98,11 +99,11 @@ class CPU{
         void inst_0nnn(){}
 
         //Clear display
-        void inst_00E0(Opcode opcode){
-            memset(pixels, 0xFF, W * H * sizeof(Uint32));
+        void inst_00E0(){
+            memset(pixels, 0xFF, DISPLAY_SIZE * sizeof(Uint32));
         }
 
-        void inst_00EE(Opcode opcode){
+        void inst_00EE(){
             PC = STACK[SP];
             SP--;
         }
@@ -201,32 +202,61 @@ class CPU{
                 uint8_t byte = VRAM[I + index];
                 uint16_t vx = V[opcode.x] % W;
                 uint16_t vy = ((V[opcode.y] + index) % H) * W;
-                uint16_t spriteIndex = (vx + vy) % (W * H);
+                uint16_t spriteIndex = (vx + vy) % (DISPLAY_SIZE);
                 uint8_t oldByte = DisplayMemory[spriteIndex];
-                VF = (byte ^ oldByte) != oldByte ? 1 : 0;
-                //DisplayMemory[spriteIndex] = byte;
+                byte ^= oldByte;
+                VF = byte != oldByte ? 1 : 0;
+                DisplayMemory[spriteIndex] = byte;
                 for(int i = 7; i >= 0; i--){
-                       pixels[(7 - i + spriteIndex) % (W * H)] = ((byte >> i) & 0x1) ? 0xFF000000 : 0xFFFFFFFF ;
+                       uint16_t index = (7 - i + spriteIndex) % (DISPLAY_SIZE);
+                       pixels[index] = ((byte >> i) & 0x1) ? 0xFF000000 : 0xFFFFFFFF ;
                 }
             }
         }
 
-        void inst_Ex9E(Opcode opcode){}
-        void inst_ExA1(Opcode opcode){}
-        void inst_Fx07(Opcode opcode){}
-        void inst_Fx0A(Opcode opcode){}
-        void inst_Fx15(Opcode opcode){}
-        void inst_Fx18(Opcode opcode){}
-        void inst_Fx1E(Opcode opcode){}
-        void inst_Fx29(Opcode opcode){}
-        void inst_Fx33(Opcode opcode){}
-        void inst_Fx55(Opcode opcode){}
-        void inst_Fx65(Opcode opcode){}
+        void inst_Ex9E(Opcode opcode){
+            //have to implement
+            PC += 2; 
+        }
+        void inst_ExA1(Opcode opcode){
+            //have to implement
+            PC += 2; 
+        }
+        void inst_Fx07(Opcode opcode){
+            //have to implement
+            V[opcode.x] = DT; 
+        }
+        void inst_Fx0A(Opcode opcode){
+            //have to implement
+        }
+        void inst_Fx15(Opcode opcode){
+            //have to implement
+            DT = V[opcode.x];
+        }
+        void inst_Fx18(Opcode opcode){
+            ST = V[opcode.x];
+        }
+        void inst_Fx1E(Opcode opcode){
+            //have to implement
+            I += V[opcode.x];
+        }
+        void inst_Fx29(Opcode opcode){
+            //have to implement
+        }
+        void inst_Fx33(Opcode opcode){
+            //have to implement
+        }
+        void inst_Fx55(Opcode opcode){
+            //have to implement
+        }
+        void inst_Fx65(Opcode opcode){
+            //have to implement
+        }
 
         void inst_0xxx(Opcode opcode){
             switch(opcode.kk){
-                case 0xE0: inst_00E0(opcode); break;
-                case 0xEE: inst_00EE(opcode); break;
+                case 0xE0: inst_00E0(); break;
+                case 0xEE: inst_00EE(); break;
             }
         }
         void inst_8xxx(Opcode opcode){
@@ -331,6 +361,6 @@ int main(int argc, char* argv[]){
     cpu.execute(opcode);
 
     DisplayController displayController;
-    displayController.show(DisplayMemory);
+    displayController.show(pixels);
     return 0;
 }
