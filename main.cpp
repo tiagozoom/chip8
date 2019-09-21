@@ -16,7 +16,10 @@ using namespace std;
 #define H 32
 #define DISPLAY_SIZE W * H
 
+uint8_t VRAM[4096], DisplayMemory[DISPLAY_SIZE / 8] = {0x0}, SP;
+uint16_t STACK[16];
 Uint32 pixels[DISPLAY_SIZE];
+
 union Opcode { 
     uint16_t inst;
     union{
@@ -45,7 +48,7 @@ class DisplayController{
                 return;
             };
 
-            window = SDL_CreateWindow("testerino", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, W * 4 * 2, H * 3 * 2, SDL_WINDOW_RESIZABLE);
+            window = SDL_CreateWindow("testerino", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 320, SDL_WINDOW_RESIZABLE);
             if(window == nullptr) {
                 cout << "Error initializing SDL window" << endl;
                 SDL_Quit();
@@ -67,8 +70,12 @@ class DisplayController{
             }
         }
 
-        void show(Uint32* pixels){
+        void show(uint8_t* DisplayMemory, Uint32* pixels){
             bool quit = false;
+            for(int i = 0; i < DISPLAY_SIZE; i++){
+                   uint16_t index = (7 - i % 8);
+                   pixels[i] = ((DisplayMemory[i/8] >> index) & 0x1) ? 0xFF000000 : 0xFFFFFFFF;
+            }
             while (!quit){
                 SDL_UpdateTexture(texture, nullptr, pixels, W * 4);
                 SDL_WaitEvent(&event);
@@ -82,9 +89,6 @@ class DisplayController{
             }
         }
 };
-
-uint8_t VRAM[4096], DisplayMemory[DISPLAY_SIZE] = {0x0}, SP;
-uint16_t STACK[16];
 
 class CPU{
     public:
@@ -198,19 +202,16 @@ class CPU{
 
         //Display and keyboard related functions
         void inst_Dxyn(Opcode opcode){
+            uint8_t w = W / 8;
+            uint16_t vx = (V[opcode.x]) % w;
             for(int index = 0; index < opcode.n; index++){
                 uint8_t byte = VRAM[I + index];
-                uint16_t vx = V[opcode.x] % W;
-                uint16_t vy = ((V[opcode.y] + index) % H) * W;
-                uint16_t spriteIndex = (vx + vy) % (DISPLAY_SIZE);
+                uint16_t vy = ((V[opcode.y] % H) + index) * w;
+                uint16_t spriteIndex = vx + vy;
                 uint8_t oldByte = DisplayMemory[spriteIndex];
                 byte ^= oldByte;
                 VF = byte != oldByte ? 1 : 0;
                 DisplayMemory[spriteIndex] = byte;
-                for(int i = 7; i >= 0; i--){
-                       uint16_t index = (7 - i + spriteIndex) % (DISPLAY_SIZE);
-                       pixels[index] = ((byte >> i) & 0x1) ? 0xFF000000 : 0xFFFFFFFF ;
-                }
             }
         }
 
@@ -324,8 +325,8 @@ int main(int argc, char* argv[]){
     cpu.PC = 0x200;
     //LoadFile("test_opcode.ch8", &VRAM[0x200]);
     Opcode opcode;
-    cpu.V[0x0] = 0x3;
-    cpu.V[0x1] = 0x0;
+    cpu.V[0x0] = 0x0;
+    cpu.V[0x1] = 0x21;
 
     VRAM[0x1] = 0x3C;
     VRAM[0x2] = 0x42;
@@ -360,7 +361,12 @@ int main(int argc, char* argv[]){
     opcode.inst = cpu.readOpcode(VRAM);
     cpu.execute(opcode);
 
+    for(int i = 0; i < H; i++){
+        for(int j = 0; j < W/8; j++) cout << hex << int(DisplayMemory[j + (i * (W / 8))]) << "  ";
+        cout << endl;
+    }
+
     DisplayController displayController;
-    displayController.show(pixels);
+    displayController.show(DisplayMemory, pixels);
     return 0;
 }
