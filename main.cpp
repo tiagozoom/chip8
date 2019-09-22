@@ -71,16 +71,19 @@ class DisplayController{
         }
 
         void show(uint8_t* DisplayMemory, Uint32* pixels){
-            bool quit = false;
             for(int i = 0; i < DISPLAY_SIZE; i++){
                    uint16_t index = (7 - i % 8);
                    pixels[i] = ((DisplayMemory[i/8] >> index) & 0x1) ? 0xFF000000 : 0xFFFFFFFF;
             }
+            SDL_UpdateTexture(texture, nullptr, pixels, W * 4);
+            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+            SDL_RenderPresent(renderer);
+        }
+
+        void stop(){
+            bool quit = false;
             while (!quit){
-                SDL_UpdateTexture(texture, nullptr, pixels, W * 4);
                 SDL_WaitEvent(&event);
-                SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-                SDL_RenderPresent(renderer);
                 switch(event.type){
                     case SDL_QUIT:
                         quit = 1;
@@ -203,7 +206,8 @@ class CPU{
         //Display and keyboard related functions
         void inst_Dxyn(Opcode opcode){
             uint8_t w = W / 8;
-            uint16_t vx = (V[opcode.x]) % w;
+            cout << hex << "opcode x: "  << int(opcode.x) << endl;
+            uint16_t vx = V[opcode.x] % w;
             for(int index = 0; index < opcode.n; index++){
                 uint8_t byte = VRAM[I + index];
                 uint16_t vy = ((V[opcode.y] % H) + index) * w;
@@ -326,21 +330,24 @@ int main(int argc, char* argv[]){
     //LoadFile("test_opcode.ch8", &VRAM[0x200]);
     Opcode opcode;
     cpu.V[0x0] = 0x0;
-    cpu.V[0x1] = 0x21;
+    cpu.V[0x1] = 0x1;
 
-    VRAM[0x1] = 0x3C;
-    VRAM[0x2] = 0x42;
-    VRAM[0x3] = 0x81;
-    VRAM[0x4] = 0xA5;
-    VRAM[0x5] = 0x81;
-    VRAM[0x6] = 0xA5;
-    VRAM[0x7] = 0x99;
-    VRAM[0x8] = 0x42;
-    VRAM[0x9] = 0x3C;
-    VRAM[0xA] = 0xAA;
-    VRAM[0xB] = 0xAA;
-    VRAM[0xC] = 0xAA;
-    VRAM[0xD] = 0xAA;
+    VRAM[0x0] = 0x00;
+    VRAM[0x1] = 0x0E;
+    VRAM[0x2] = 0x11;
+    VRAM[0x3] = 0x17;
+    VRAM[0x4] = 0x11;
+    VRAM[0x5] = 0x11;
+    VRAM[0x6] = 0x31;
+    VRAM[0x7] = 0x4E;
+    VRAM[0x8] = 0x48;
+    VRAM[0x9] = 0xFC;
+    VRAM[0xA] = 0x84;
+    VRAM[0xB] = 0x94;
+    VRAM[0xC] = 0xBC;
+    VRAM[0xD] = 0x94;
+    VRAM[0xE] = 0x94;
+    VRAM[0xF] = 0x7B;
 
     VRAM[cpu.PC] = 0xA0;
     VRAM[cpu.PC + 1] = 0x1;
@@ -357,16 +364,105 @@ int main(int argc, char* argv[]){
     cpu.PC += 2;
 
     VRAM[cpu.PC] = 0xD0;
-    VRAM[cpu.PC + 1] = 0x19;
+    VRAM[cpu.PC + 1] = 0x1F;
     opcode.inst = cpu.readOpcode(VRAM);
     cpu.execute(opcode);
+
+    DisplayController displayController;
+    displayController.show(DisplayMemory, pixels);
+
+    cpu.PC += 2;
+
+    VRAM[cpu.PC] = 0xA0;
+    VRAM[cpu.PC + 1] = 0x0;
+    opcode.inst = cpu.readOpcode(VRAM);
+    cpu.execute(opcode);
+
+    cpu.V[0x0] = 0x0;
+    cpu.V[0x0] = 0x10;
+
+    VRAM[0x0] = 0x31;
+    VRAM[0x1] = 0x31;
+    VRAM[0x2] = 0x31;
+    VRAM[0x3] = 0x31;
+    VRAM[0x4] = 0x39; 
+
+    cpu.PC += 2;
+
+    VRAM[cpu.PC] = 0xD0;
+    VRAM[cpu.PC + 1] = 0x05;
+    opcode.inst = cpu.readOpcode(VRAM);
+    cpu.execute(opcode);
+
+    displayController.show(DisplayMemory, pixels);
+
+    cpu.PC += 2;
+
+    VRAM[cpu.PC] = 0xA0;
+    VRAM[cpu.PC + 1] = 0x0;
+    opcode.inst = cpu.readOpcode(VRAM);
+    cpu.execute(opcode);
+
+    cpu.V[0xf] = 0x1;
+    cpu.V[0x0] = 0x1;
+
+    VRAM[0x0] = 0x00;
+    VRAM[0x1] = 0x00;
+    VRAM[0x2] = 0x00;
+    VRAM[0x3] = 0x00;
+    VRAM[0x4] = 0x00;
+    VRAM[0x5] = 0x80;
+    VRAM[0x6] = 0x40;
+    VRAM[0x7] = 0x40;
+    VRAM[0x8] = 0x41;
+    VRAM[0x9] = 0xA2;
+    VRAM[0xA] = 0xA4;
+    VRAM[0xB] = 0xD8;
+    VRAM[0xC] = 0xB8;
+    VRAM[0xD] = 0x90;
+    VRAM[0xE] = 0x80;
+    VRAM[0xF] = 0x00;
+
+    cpu.PC += 2;
+
+    VRAM[cpu.PC] = 0xDf;
+    VRAM[cpu.PC + 1] = 0x0F;
+    opcode.inst = cpu.readOpcode(VRAM);
+    cpu.execute(opcode);
+
+    displayController.show(DisplayMemory, pixels);
+
+    cpu.PC += 2;
+
+    VRAM[cpu.PC] = 0xA0;
+    VRAM[cpu.PC + 1] = 0x0;
+    opcode.inst = cpu.readOpcode(VRAM);
+    cpu.execute(opcode);
+
+    cpu.V[0x1] = 0x1;
+    cpu.V[0xf] = 0x10;
+
+    VRAM[0x0] = 0x80;
+    VRAM[0x1] = 0x80;
+    VRAM[0x2] = 0x80;
+    VRAM[0x3] = 0x80;
+    VRAM[0x4] = 0xC0;
+
+    cpu.PC += 2;
+
+    VRAM[cpu.PC] = 0xD1;
+    VRAM[cpu.PC + 1] = 0xf5;
+    opcode.inst = cpu.readOpcode(VRAM);
+    cpu.execute(opcode);
+
+    displayController.show(DisplayMemory, pixels);
 
     for(int i = 0; i < H; i++){
         for(int j = 0; j < W/8; j++) cout << hex << int(DisplayMemory[j + (i * (W / 8))]) << "  ";
         cout << endl;
     }
 
-    DisplayController displayController;
-    displayController.show(DisplayMemory, pixels);
+    displayController.stop();
+
     return 0;
 }
