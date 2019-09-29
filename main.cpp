@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <string>
-#include <SDL2/SDL.h>
+#include "display_controller.h" 
+#include "CPU.h" 
 
 using namespace std;
 
@@ -12,456 +13,95 @@ using namespace std;
 #define PROGRAM_START 0x200;
 #define ETI_PROGRAMS 0x600;
 #define INITIAL_LOCATION 0xFFF;
-#define W 64
-#define H 32
-#define DISPLAY_SIZE W * H
+#define RESET "\033[0m"
+#define RED "\033[31m"
 
-uint8_t VRAM[4096], DisplayMemory[DISPLAY_SIZE / 8] = {0x0}, SP;
-uint16_t STACK[16];
+uint8_t VRAM[4096], DisplayMemory[DISPLAY_SIZE / 8];
 Uint32 pixels[DISPLAY_SIZE];
-
-union Opcode { 
-    uint16_t inst;
-    union{
-        uint16_t nnn: 12;
-        struct {
-            uint8_t n: 4;
-            uint8_t y: 4;
-            uint8_t x: 4;
-            uint8_t u: 4;
-        };
-        uint8_t kk;
-    };
-};
-
-class DisplayController{
-    private:
-        SDL_Rect rect;
-        SDL_Window* window ;
-        SDL_Renderer* renderer;
-        SDL_Texture* texture;
-        SDL_Event event;
-    public: 
-        DisplayController(){
-            if(SDL_Init(SDL_INIT_VIDEO) != 0){
-                cout << "Error initializing SDL" << endl;
-                return;
-            };
-
-            window = SDL_CreateWindow("testerino", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 320, SDL_WINDOW_RESIZABLE);
-            if(window == nullptr) {
-                cout << "Error initializing SDL window" << endl;
-                SDL_Quit();
-                return;
-            }
-
-            renderer = SDL_CreateRenderer(window, -1, 0);
-            if(renderer == nullptr){
-                cout << "Error initializing renderer" << endl;
-                SDL_Quit();
-                return;
-            }
-
-            texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, W, H);
-            if(texture == nullptr){
-                cout << "Error initializing texture" << endl;
-                SDL_Quit();
-                return;
-            }
-        }
-
-        void show(uint8_t* DisplayMemory, Uint32* pixels){
-            for(int i = 0; i < DISPLAY_SIZE; i++){
-                   uint16_t index = (7 - i % 8);
-                   pixels[i] = ((DisplayMemory[i/8] >> index) & 0x1) ? 0xFF000000 : 0xFFFFFFFF;
-            }
-            SDL_UpdateTexture(texture, nullptr, pixels, W * 4);
-            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-            SDL_RenderPresent(renderer);
-        }
-
-        void stop(){
-            bool quit = false;
-            while (!quit){
-                SDL_WaitEvent(&event);
-                switch(event.type){
-                    case SDL_QUIT:
-                        quit = 1;
-                        break;
-                }
-            }
-        }
-};
-
-class CPU{
-    public:
-        CPU(){
-            PC = 0x200; 
-        }
-        uint8_t V[16], DT, ST, VF;
-        uint16_t I, PC;
-
-        uint16_t readOpcode(uint8_t *memory){
-            return (memory[PC] << 8) + memory[PC+1]; 
-        }
-
-        //Not used in modern interpreters
-        void inst_0nnn(){}
-
-        //Clear display
-        void inst_00E0(){
-            memset(pixels, 0xFF, DISPLAY_SIZE * sizeof(Uint32));
-        }
-
-        void inst_00EE(){
-            PC = STACK[SP];
-            SP--;
-        }
-
-        void inst_1nnn(Opcode opcode){
-            PC = opcode.nnn;
-        }
-
-        void inst_2nnn(Opcode opcode){
-            STACK[++SP] = PC;
-            PC = opcode.nnn;
-        }
-
-        void inst_3xkk(Opcode opcode){
-            if(V[opcode.x] == opcode.kk) PC+=2;
-        }
-
-        void inst_4xkk(Opcode opcode){
-            if(V[opcode.x] != opcode.kk) PC+=2;
-        }
-
-        void inst_5xy0(Opcode opcode){
-            if(V[opcode.x] == V[opcode.y]) PC +=2;
-        }
-
-        void inst_6xkk(Opcode opcode){
-            V[opcode.x] = opcode.kk;
-        }
-
-        void inst_7xkk(Opcode opcode){
-            V[opcode.x] += opcode.kk;
-        }
-
-        void inst_8xy0(Opcode opcode){
-            V[opcode.y] = V[opcode.x];
-        }
-
-        void inst_8xy1(Opcode opcode){
-            V[opcode.x] = V[opcode.y] | V[opcode.x];
-        }
-
-        void inst_8xy2(Opcode opcode){
-            V[opcode.x] = V[opcode.y] & V[opcode.x];
-        }
-
-        void inst_8xy3(Opcode opcode){
-            V[opcode.x] = V[opcode.y] ^ V[opcode.x];
-        }
-
-        void inst_8xy4(Opcode opcode){
-            uint16_t sum = V[opcode.x] + V[opcode.y];
-            VF = (sum > 0xFF) ? 1 : 0;
-            V[opcode.x] = sum & 0xFF;
-        }
-
-        void inst_8xy5(Opcode opcode){
-            VF = (V[opcode.y] > V[opcode.x]) ? 1 : 0;
-            V[opcode.x] = V[opcode.y] - V[opcode.x];
-        }
-
-        void inst_8xy6(Opcode opcode){
-            VF = ((V[opcode.x] & 0x01) == 1) ? 1 : 0;
-            V[opcode.x] /= 2;
-        }
-
-        void inst_8xy7(Opcode opcode){
-            VF = (V[opcode.y] > V[opcode.x]) ? 1 : 0;
-            V[opcode.x] = V[opcode.x] - V[opcode.y];
-        }
-
-        void inst_8xyE(Opcode opcode){
-            VF = (V[opcode.x] >> 7) ? 1 : 0;
-            V[opcode.x] = V[opcode.x] * 2;
-        }
-
-        void inst_9xy0(Opcode opcode){
-            if(V[opcode.y] != V[opcode.x]) PC+=2;
-        }
-
-        void inst_Annn(Opcode opcode){
-            I = opcode.nnn;
-        }
-
-        void inst_Bnnn(Opcode opcode){
-            PC = opcode.nnn + V[0];
-        }
-
-        void inst_Cxkk(Opcode opcode){
-            int randomNumber = rand() % 256;
-            V[opcode.x] = (randomNumber & opcode.kk); 
-        }
-
-        //Display and keyboard related functions
-        void inst_Dxyn(Opcode opcode){
-            uint8_t w = W / 8;
-            uint16_t vx = V[opcode.x] % w;
-            for(int index = 0; index < opcode.n; index++){
-                uint8_t byte = VRAM[I + index];
-                uint16_t vy = ((V[opcode.y] % H) + index) * w;
-                uint16_t spriteIndex = vx + vy;
-                uint8_t oldByte = DisplayMemory[spriteIndex];
-                byte ^= oldByte;
-                VF = byte != oldByte ? 1 : 0;
-                DisplayMemory[spriteIndex] = byte;
-            }
-        }
-
-        void inst_Ex9E(Opcode opcode){
-            //have to implement
-            PC += 2; 
-        }
-        void inst_ExA1(Opcode opcode){
-            //have to implement
-            PC += 2; 
-        }
-        void inst_Fx07(Opcode opcode){
-            //have to implement
-            V[opcode.x] = DT; 
-        }
-        void inst_Fx0A(Opcode opcode){
-            //have to implement
-        }
-        void inst_Fx15(Opcode opcode){
-            //have to implement
-            DT = V[opcode.x];
-        }
-        void inst_Fx18(Opcode opcode){
-            ST = V[opcode.x];
-        }
-        void inst_Fx1E(Opcode opcode){
-            //have to implement
-            I += V[opcode.x];
-        }
-        void inst_Fx29(Opcode opcode){
-            //have to implement
-        }
-        void inst_Fx33(Opcode opcode){
-            //have to implement
-        }
-        void inst_Fx55(Opcode opcode){
-            //have to implement
-        }
-        void inst_Fx65(Opcode opcode){
-            //have to implement
-        }
-
-        void inst_0xxx(Opcode opcode){
-            switch(opcode.kk){
-                case 0xE0: inst_00E0(); break;
-                case 0xEE: inst_00EE(); break;
-            }
-        }
-        void inst_8xxx(Opcode opcode){
-            switch(opcode.n){
-                case 0x1: inst_8xy1(opcode); break;
-                case 0x2: inst_8xy2(opcode); break;
-                case 0x3: inst_8xy3(opcode); break;
-                case 0x4: inst_8xy4(opcode); break;
-                case 0x5: inst_8xy5(opcode); break;
-                case 0x6: inst_8xy6(opcode); break;
-                case 0x7: inst_8xy7(opcode); break;
-                case 0xE: inst_8xyE(opcode); break;
-            }
-        }
-
-        void inst_Exxx(Opcode opcode){
-            switch(opcode.kk){
-                case 0x9E: inst_Ex9E(opcode); break;
-                case 0xA1: inst_ExA1(opcode); break;
-            }
-        }
-
-        void inst_Fxxx(Opcode opcode){
-            switch(opcode.kk){
-                case 0x15: inst_Fx15(opcode); break;
-                case 0x18: inst_Fx18(opcode); break;
-                case 0x1E: inst_Fx1E(opcode); break;
-                case 0x29: inst_Fx29(opcode); break;
-                case 0x33: inst_Fx33(opcode); break;
-                case 0x55: inst_Fx55(opcode); break;
-                case 0x65: inst_Fx65(opcode); break;
-            }
-        }
-
-        void execute(Opcode opcode){
-            switch(opcode.u){
-                case 0x0: inst_0xxx(opcode); break;
-                case 0x1: inst_1nnn(opcode); break;
-                case 0x2: inst_2nnn(opcode); break;
-                case 0x3: inst_3xkk(opcode); break;
-                case 0x4: inst_4xkk(opcode); break;
-                case 0x5: inst_5xy0(opcode); break;
-                case 0x6: inst_6xkk(opcode); break;
-                case 0x7: inst_7xkk(opcode); break;
-                case 0x8: inst_8xxx(opcode); break;
-                case 0x9: inst_9xy0(opcode); break;
-                case 0xA: inst_Annn(opcode); break;
-                case 0xB: inst_Bnnn(opcode); break;
-                case 0xC: inst_Cxkk(opcode); break;
-                case 0xD: inst_Dxyn(opcode); break;
-                case 0xE: inst_Exxx(opcode); break;
-                case 0xF: inst_Fxxx(opcode); break;
-                default: cout << "No instruction found." << endl;
-            }
-        }
-};
 
 void LoadFile(string filename, uint8_t* buffer){
     ifstream file;
-    for(file.open(filename, ios::binary); file.good(); ){ *buffer = file.get(); cout << hex << int(*buffer) ; buffer++;}
+    for(file.open(filename, ios::binary); file.good(); ){ *buffer = file.get();  buffer++;}
+}
+
+const string getByteString(uint8_t number){
+        uint8_t firstNibble  = number >> 4 & 0xF;
+        uint8_t secondNibble = number & 0xF0 >> 4;
+        string nibble1(sizeof(const char), "0123456789ABCDEF"[firstNibble]);
+        string nibble2(sizeof(const char), "0123456789ABCDEF"[secondNibble]);
+        return nibble1 + nibble2; 
+}
+
+const string getByteString(uint16_t number){
+        uint8_t firstNibble  = number >> 12;
+        uint8_t secondNibble  = number >> 8 & 0x0F;
+        uint8_t thirdNibble = number >> 4 & 0xF;
+        uint8_t fourthNibble = number  & 0xF;
+        
+        string nibble1(sizeof(const char), "0123456789ABCDEF"[firstNibble]);
+        string nibble2(sizeof(const char), "0123456789ABCDEF"[secondNibble]);
+        string nibble3(sizeof(const char), "0123456789ABCDEF"[thirdNibble]);
+        string nibble4(sizeof(const char), "0123456789ABCDEF"[fourthNibble]);
+        return nibble1 + nibble2 + nibble3 + nibble4; 
+}
+
+void DisplayRegisters(CPU cpu){
+    for(int index=0; index<16; index++){
+        cout << "V[" << hex << int(index) << "] ";
+    }
+
+    cout << endl;
+
+    for(int index=0; index<16; index++){
+        string byte = getByteString(cpu.V[index]);
+        cout << byte << "   ";
+    }
+
+    cout << endl << endl << "DT" << "  " << "ST" << "  " << "VF" << "  " << "I" << "     " << "PC" << endl;
+    cout << hex << getByteString(cpu.DT) << "  ";
+    cout << hex << getByteString(cpu.ST) << "  ";
+    cout << hex << getByteString(cpu.VF) << "  ";
+    cout << getByteString(cpu.I) << "  ";
+    cout << getByteString(cpu.PC) << endl;
+}
+
+void DisplayConsoleMem(uint8_t* VRAM, uint16_t current_address){
+    cout << endl << endl;
+    for(int h=0; h<52; h++){
+        for(int w=0; w<64; w+=2){
+            uint8_t byte1 = int(VRAM[w + (h *  W)]);
+            string byteString1 = getByteString(byte1);
+            uint8_t byte2 = int(VRAM[w+1 + (h *  W)]);
+            string byteString2 = getByteString(byte2);
+            ((w + (h * W)) == (current_address - 0x200)) ? cout << RED <<  byteString1 << byteString2 << RESET << " " : cout <<  byteString1 << byteString2 << " ";
+        }
+        cout << endl;
+    }
 }
 
 int main(int argc, char* argv[]){
     CPU cpu;
-    //LoadFile("test_opcode.ch8", &VRAM[0x200]);
     Opcode opcode;
-    cpu.V[0x0] = 0x0;
-    cpu.V[0x1] = 0x1;
+    DisplayController display;
+    cpu.PC = 0x200;
+    LoadFile(argv[1], &VRAM[cpu.PC]);
+    uint8_t* pointer = &VRAM[cpu.PC];
+    
+    do {
+        system("clear"); 
 
-    VRAM[0x0] = 0x0E;
-    VRAM[0x1] = 0x11;
-    VRAM[0x2] = 0x17;
-    VRAM[0x3] = 0x11;
-    VRAM[0x4] = 0x11;
-    VRAM[0x5] = 0x31;
-    VRAM[0x6] = 0x4E;
-    VRAM[0x7] = 0x48;
-    VRAM[0x8] = 0xFC;
-    VRAM[0x9] = 0x84;
-    VRAM[0xA] = 0x94;
-    VRAM[0xB] = 0xBC;
-    VRAM[0xC] = 0x94;
-    VRAM[0xD] = 0x94;
-    VRAM[0xE] = 0x7B;
+        DisplayRegisters(cpu);
+        DisplayConsoleMem(&VRAM[0x200], cpu.PC);
 
-    VRAM[cpu.PC] = 0xA0;
-    VRAM[cpu.PC + 1] = 0x0;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
+        opcode.inst = cpu.read(VRAM);
+        cpu.execute(opcode);
 
-    cpu.PC += 2;
+        cout << endl << "Instruction: " << opcode.inst << endl;
+        display.show(DisplayMemory, pixels);
 
-    VRAM[cpu.PC] = 0x00;
-    VRAM[cpu.PC + 1] = 0xE0;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
+        pointer+=2;
+    } while(cin.get() != 27);
 
-    cpu.PC += 2;
-
-    VRAM[cpu.PC] = 0xD0;
-    VRAM[cpu.PC + 1] = 0x1F;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
-
-    DisplayController displayController;
-    displayController.show(DisplayMemory, pixels);
-
-    cpu.PC += 2;
-
-    VRAM[cpu.PC] = 0xA0;
-    VRAM[cpu.PC + 1] = 0x0;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
-
-    cpu.V[0x0] = 0x0;
-    cpu.V[0x1] = 0x10;
-
-    VRAM[0x0] = 0x31;
-    VRAM[0x1] = 0x31;
-    VRAM[0x2] = 0x31;
-    VRAM[0x3] = 0x31;
-    VRAM[0x4] = 0x39; 
-
-    cpu.PC += 2;
-
-    VRAM[cpu.PC] = 0xD0;
-    VRAM[cpu.PC + 1] = 0x15;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
-
-    displayController.show(DisplayMemory, pixels);
-
-    cpu.PC += 2;
-
-    VRAM[cpu.PC] = 0xA0;
-    VRAM[cpu.PC + 1] = 0x0;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
-
-    cpu.V[0x0] = 0x1;
-    cpu.V[0x1] = 0x1;
-
-    VRAM[0x0] = 0x00;
-    VRAM[0x1] = 0x00;
-    VRAM[0x2] = 0x00;
-    VRAM[0x3] = 0x00;
-    VRAM[0x4] = 0x00;
-    VRAM[0x5] = 0x80;
-    VRAM[0x6] = 0x40;
-    VRAM[0x7] = 0x40;
-    VRAM[0x8] = 0x41;
-    VRAM[0x9] = 0xA2;
-    VRAM[0xA] = 0xA4;
-    VRAM[0xB] = 0xD8;
-    VRAM[0xC] = 0xB8;
-    VRAM[0xD] = 0x90;
-    VRAM[0xE] = 0x80;
-
-    cpu.PC += 2;
-
-    VRAM[cpu.PC] = 0xD0;
-    VRAM[cpu.PC + 1] = 0x1F;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
-
-    displayController.show(DisplayMemory, pixels);
-
-    cpu.PC += 2;
-
-    VRAM[cpu.PC] = 0xA0;
-    VRAM[cpu.PC + 1] = 0x0;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
-
-    cpu.V[0x0] = 0x1;
-    cpu.V[0x1] = 0x10;
-
-    VRAM[0x0] = 0x80;
-    VRAM[0x1] = 0x80;
-    VRAM[0x2] = 0x80;
-    VRAM[0x3] = 0x80;
-    VRAM[0x4] = 0xC0;
-
-    cpu.PC += 2;
-
-    VRAM[cpu.PC] = 0xD0;
-    VRAM[cpu.PC + 1] = 0x15;
-    opcode.inst = cpu.readOpcode(VRAM);
-    cpu.execute(opcode);
-
-    displayController.show(DisplayMemory, pixels);
-
-    for(int i = 0; i < H; i++){
-        for(int j = 0; j < W/8; j++) cout << hex << int(DisplayMemory[j + (i * (W / 8))]) << "  ";
-        cout << endl;
-    }
-
-    displayController.stop();
-
+    display.stop();
     return 0;
 }
