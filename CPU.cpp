@@ -15,7 +15,6 @@ uint16_t CPU::read(uint8_t *memory){
 void CPU::inst_0nnn(){}
 
 void CPU::inst_00E0(){
-    cout << " cleeeeeaned";
     memset(pixels, 0xFFFFFFFF, DISPLAY_SIZE * sizeof(Uint32));
 }
 
@@ -128,7 +127,7 @@ void CPU::inst_Dxyn(Opcode opcode){
         spriteIndex = (V[opcode.x] % W) + (((V[opcode.y] % H) + index) * W);
         for(int pos=0; pos<8; pos++){
             uint16_t bit = (7 - pos % 8);
-            pixels[spriteIndex + pos] = ((byte >> bit) & 0x1) ? 0xFF000000 : 0xFFFFFFFF;
+            pixels[spriteIndex + pos] = ((byte >> bit) & 0x1) ? 0xFFFFFFFF : 0xFF000000;
         }
 
     }
