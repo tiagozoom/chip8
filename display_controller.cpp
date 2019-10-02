@@ -8,11 +8,7 @@ DisplayController::DisplayController(){
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, W, H);
 }
 
-void DisplayController::show(uint8_t* memory, Uint32* pixels){
-    /*for(int i = 0; i < (W * H); i++){
-           uint16_t index = (7 - i % 8);
-           pixels[i] = ((memory[i/8] >> index) & 0x1) ? 0xFF000000 : 0xFFFFFFFF;
-    }*/
+void DisplayController::show(Uint32* pixels){
     SDL_UpdateTexture(texture, nullptr, pixels, W * 4);
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
     SDL_RenderPresent(renderer);

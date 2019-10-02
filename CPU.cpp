@@ -113,21 +113,16 @@ void CPU::inst_Cxkk(Opcode opcode){
 
 //Display and keyboard related functions
 void CPU::inst_Dxyn(Opcode opcode){
-    uint8_t w = W / 8;
-    uint16_t vx = V[opcode.x] % w;
+    uint8_t vx = V[opcode.x] % W;
     for(int index = 0; index < opcode.n; index++){
         uint8_t byte = VRAM[I + index];
-        uint16_t vy = ((V[opcode.y] % H) + index) * w;
+        uint16_t vy = ((V[opcode.y] % H) + index) * W;
         uint16_t spriteIndex = vx + vy;
-        uint8_t oldByte = DisplayMemory[spriteIndex];
-        byte ^= oldByte;
-        VF = byte != oldByte ? 1 : 0;
-        DisplayMemory[spriteIndex] = byte;
-
-        spriteIndex = (V[opcode.x] % W) + (((V[opcode.y] % H) + index) * W);
         for(int pos=0; pos<8; pos++){
             uint16_t bit = (7 - pos % 8);
-            pixels[spriteIndex + pos] = ((byte >> bit) & 0x1) ? 0xFFFFFFFF : 0xFF000000;
+            Uint32  newPixel = ((byte >> bit) & 0x1) ? 0xFFFFFFFF : 0xFF000000;
+            VF |= (newPixel != pixels[spriteIndex + pos]) ? 1 : 0;
+            pixels[spriteIndex + pos] = newPixel;
         }
 
     }

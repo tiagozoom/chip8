@@ -16,7 +16,7 @@ using namespace std;
 #define RESET "\033[0m"
 #define RED "\033[31m"
 
-uint8_t VRAM[4096], DisplayMemory[DISPLAY_SIZE / 8];
+uint8_t VRAM[4096];
 Uint32 pixels[DISPLAY_SIZE];
 
 void LoadFile(string filename, uint8_t* buffer){
@@ -97,7 +97,7 @@ int main(int argc, char* argv[]){
         cpu.execute(opcode);
 
         cout << endl << "Instruction: " << opcode.inst << endl;
-        display.show(DisplayMemory, pixels);
+        display.show(pixels);
 
         pointer+=2;
     } while(cin.get() != 27);

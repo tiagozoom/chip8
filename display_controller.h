@@ -14,6 +14,6 @@ class DisplayController{
         uint8_t height;
     public: 
         DisplayController();
-        void show(uint8_t* memory, Uint32* pixels);
+        void show(Uint32* pixels);
         void stop();
 };
