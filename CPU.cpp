@@ -1,8 +1,8 @@
-#include "CPU.h"
+#include "cpu.h"
 
 using namespace std;
 
-CPU::CPU(void){
+void CPU::Init(void){
     PC = 0x200; 
     SP = DT = ST = VF = I = PC = 0;
 }
@@ -53,7 +53,7 @@ void CPU::inst_7xkk(Opcode opcode){
 }
 
 void CPU::inst_8xy0(Opcode opcode){
-    V[opcode.y] = V[opcode.x];
+    V[opcode.x] = V[opcode.y];
 }
 
 void CPU::inst_8xy1(Opcode opcode){
@@ -75,8 +75,8 @@ void CPU::inst_8xy4(Opcode opcode){
 }
 
 void CPU::inst_8xy5(Opcode opcode){
-    VF = (V[opcode.y] > V[opcode.x]) ? 1 : 0;
-    V[opcode.x] = V[opcode.y] - V[opcode.x];
+    VF = (V[opcode.x] > V[opcode.y]) ? 1 : 0;
+    V[opcode.x] = V[opcode.x] - V[opcode.y];
 }
 
 void CPU::inst_8xy6(Opcode opcode){
@@ -115,11 +115,12 @@ void CPU::inst_Cxkk(Opcode opcode){
 void CPU::inst_Dxyn(Opcode opcode){
     uint8_t vx = V[opcode.x] % W;
     for(int index = 0; index < opcode.n; index++){
-        uint8_t byte = VRAM[I + index];
+        uint8_t byte = chip8.VRAM[I + index];
+        cout << hex << int(byte) << ": byte" << endl;
         uint16_t vy = ((V[opcode.y] % H) + index) * W;
         uint16_t spriteIndex = vx + vy;
         for(int pos=0; pos<8; pos++){
-            uint16_t bit = (7 - pos % 8);
+            uint8_t bit = (7 - pos % 8);
             Uint32  newPixel = ((byte >> bit) & 0x1) ? 0xFFFFFFFF : 0xFF000000;
             VF |= (newPixel != pixels[spriteIndex + pos]) ? 1 : 0;
             pixels[spriteIndex + pos] = newPixel;
@@ -152,22 +153,22 @@ void CPU::inst_Fx1E(Opcode opcode){
     I += V[opcode.x];
 }
 void CPU::inst_Fx29(Opcode opcode){
-    //have to implement
+    I = chip8.VRAM - &chip8.font[V[opcode.x]];
 }
 void CPU::inst_Fx33(Opcode opcode){
     uint8_t decimalValue = V[opcode.x];
-    VRAM[I] = decimalValue / 100;
-    VRAM[I+1] = (decimalValue % 100) / 10;
-    VRAM[I+2] = decimalValue % 10;
+    chip8.VRAM[I] = decimalValue / 100;
+    chip8.VRAM[I+1] = (decimalValue % 100) / 10;
+    chip8.VRAM[I+2] = decimalValue % 10;
 }
 void CPU::inst_Fx55(Opcode opcode){
-    for(int i = 0; i < opcode.x; i++){
-        VRAM[I + i] = V[i];
+    for(int i = 0; i <= opcode.x; i++){
+        chip8.VRAM[I + i] = V[i];
     }
 }
 void CPU::inst_Fx65(Opcode opcode){
-    for(int i = 0; i < opcode.x; i++){
-        V[i] = VRAM[I + i];
+    for(int i = 0; i <= opcode.x; i++){
+        V[i] = chip8.VRAM[I + i];
     }
 }
 
@@ -179,6 +180,7 @@ void CPU::inst_0xxx(Opcode opcode){
 }
 void CPU::inst_8xxx(Opcode opcode){
     switch(opcode.n){
+        case 0x0: inst_8xy0(opcode); break;
         case 0x1: inst_8xy1(opcode); break;
         case 0x2: inst_8xy2(opcode); break;
         case 0x3: inst_8xy3(opcode); break;

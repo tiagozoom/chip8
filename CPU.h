@@ -1,10 +1,11 @@
 #include <SDL2/SDL.h>
+#include "chip8.h"
 #include "display.h"
 #include "opcode.h" 
 
-class CPU{
+class CPU {
     public:
-        CPU();
+        void Init();
         uint16_t STACK[16];
         uint8_t V[16], DT, ST, VF, SP;
         uint16_t I, PC;
