@@ -1,23 +1,24 @@
-#include <iostream>
+#include <iostream> 
 #include <fstream>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
 #include "display_controller.h" 
-#include "CPU.h" 
+#include "cpu.h" 
+#include "chip8.h"
 
 using namespace std;
 
-#define INIT_RESERVED_INTERPRETER 0x000;
-#define END_RESERVED_INTERPRETER 0x1FF;
-#define PROGRAM_START 0x200;
-#define ETI_PROGRAMS 0x600;
-#define INITIAL_LOCATION 0xFFF;
+#define INIT_RESERVED_INTERPRETER 0x000
+#define END_RESERVED_INTERPRETER 0x1FF
+#define PROGRAM_START 0x200
+#define ETI_PROGRAMS 0x600
+#define INITIAL_LOCATION 0xFFF
 #define RESET "\033[0m"
 #define RED "\033[31m"
 
-uint8_t VRAM[4096];
 Uint32 pixels[DISPLAY_SIZE];
+Chip8 chip8;
 
 void LoadFile(string filename, uint8_t* buffer){
     ifstream file;
@@ -67,41 +68,47 @@ void DisplayRegisters(CPU cpu){
 
 void DisplayConsoleMem(uint8_t* VRAM, uint16_t current_address){
     cout << endl << endl;
-    for(int h=0; h<52; h++){
+    for(int h=0; h<8; h++){
         for(int w=0; w<64; w+=2){
-            uint8_t byte1 = int(VRAM[w + (h *  W)]);
-            string byteString1 = getByteString(byte1);
+            if((w + (h *  W)) % 16 == 0) cout << hex << int(w + (h *  W)) + 0x200<< endl;
+            uint8_t byte1 = int(VRAM[w + (h *  W)]); string byteString1 = getByteString(byte1);
             uint8_t byte2 = int(VRAM[w+1 + (h *  W)]);
             string byteString2 = getByteString(byte2);
-            ((w + (h * W)) == (current_address - 0x200)) ? cout << RED <<  byteString1 << byteString2 << RESET << " " : cout <<  byteString1 << byteString2 << " ";
+            ((w + (h * W)) == (current_address - PROGRAM_START)) ? cout << RED <<  byteString1 << byteString2 << RESET << " " : cout <<  byteString1 << byteString2 << " ";
         }
         cout << endl;
     }
 }
 
 int main(int argc, char* argv[]){
+    uint8_t font_test[0xF*0x5] = { 0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70, 0xF0, 0x10, 0xF0, 0x80, 0xF0, 0xF0, 0x10, 0xF0, 0x10, 0xF0,
+                                   0x90, 0x90, 0xF0, 0x10, 0x10, 0xF0, 0x80, 0xF0, 0x10, 0xF0, 0xF0, 0x80, 0xF0, 0x90, 0xF0, 0xF0, 0x10, 0x20, 0x40, 0x40,
+                                   0xF0, 0x90, 0xF0, 0x90, 0x90, 0xE0, 0x90, 0xE0, 0x90, 0xE0, 0xF0, 0x80, 0x80, 0x80, 0xF0, 0xE0, 0x90, 0x90, 0x90, 0xE0,
+                                   0xF0, 0x80, 0xF0, 0x80, 0xF0, 0xF0, 0x80, 0xF0, 0x80, 0x80 };
+    memcpy(chip8.font, font_test, (0xF*0x5)*sizeof(uint8_t));
     CPU cpu;
+    cpu.Init();
+    chip8.display.Init();
     Opcode opcode;
-    DisplayController display;
     cpu.PC = 0x200;
-    LoadFile(argv[1], &VRAM[cpu.PC]);
-    uint8_t* pointer = &VRAM[cpu.PC];
+    LoadFile(argv[1], &chip8.VRAM[cpu.PC]);
+    uint8_t* pointer = &chip8.VRAM[cpu.PC];
     
     do {
         system("clear"); 
 
-        DisplayRegisters(cpu);
-        DisplayConsoleMem(&VRAM[0x200], cpu.PC);
-
-        opcode.inst = cpu.read(VRAM);
+        opcode.inst = cpu.read(chip8.VRAM);
         cpu.execute(opcode);
 
+        DisplayRegisters(cpu);
+        DisplayConsoleMem(&chip8.VRAM[PROGRAM_START], cpu.PC);
+
+
         cout << endl << "Instruction: " << opcode.inst << endl;
-        display.show(pixels);
+        chip8.display.show(pixels);
 
         pointer+=2;
-    } while(cin.get() != 27);
+    } while(!chip8.display.stop());
 
-    display.stop();
     return 0;
 }

@@ -13,7 +13,7 @@ class DisplayController{
         uint8_t width;
         uint8_t height;
     public: 
-        DisplayController();
+        void Init();
         void show(Uint32* pixels);
-        void stop();
+        bool stop();
 };
