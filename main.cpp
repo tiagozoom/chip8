@@ -80,6 +80,23 @@ void DisplayConsoleMem(uint8_t* VRAM, uint16_t current_address){
     }
 }
 
+bool debug(){
+    for(SDL_Event event; SDL_WaitEvent(&event);){
+        if(event.type == SDL_QUIT) { return true;}
+        if(event.type == SDL_KEYUP) { break; }
+    }
+    
+    return false;
+}
+
+bool nonDebug(){
+    for(SDL_Event event; SDL_PollEvent(&event);){
+        if(event.type == SDL_QUIT) { return true; }
+    }
+
+    return false;
+}
+
 int main(int argc, char* argv[]){
     uint8_t font_test[0xF*0x5] = { 0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70, 0xF0, 0x10, 0xF0, 0x80, 0xF0, 0xF0, 0x10, 0xF0, 0x10, 0xF0,
                                    0x90, 0x90, 0xF0, 0x10, 0x10, 0xF0, 0x80, 0xF0, 0x10, 0xF0, 0xF0, 0x80, 0xF0, 0x90, 0xF0, 0xF0, 0x10, 0x20, 0x40, 0x40,
@@ -93,22 +110,23 @@ int main(int argc, char* argv[]){
     cpu.PC = 0x200;
     LoadFile(argv[1], &chip8.VRAM[cpu.PC]);
     uint8_t* pointer = &chip8.VRAM[cpu.PC];
-    
-    do {
-        system("clear"); 
 
+    bool (*loopPointer)() = (argv[2] && strcmp(argv[2], "debug") == 0) ? debug : nonDebug;
+    bool quit = false;
+
+    while(!quit){
         opcode.inst = cpu.read(chip8.VRAM);
         cpu.execute(opcode);
 
         DisplayRegisters(cpu);
         DisplayConsoleMem(&chip8.VRAM[PROGRAM_START], cpu.PC);
-
-
         cout << endl << "Instruction: " << opcode.inst << endl;
         chip8.display.show(pixels);
-
         pointer+=2;
-    } while(!chip8.display.stop());
+
+        quit = loopPointer();
+        system("clear"); 
+    }
 
     return 0;
 }
