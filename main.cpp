@@ -120,7 +120,7 @@ int main(int argc, char* argv[]){
 
         DisplayRegisters(cpu);
         DisplayConsoleMem(&chip8.VRAM[PROGRAM_START], cpu.PC);
-        cout << endl << "Instruction: " << opcode.inst << endl;
+        cout << endl << "Instruction: " << opcode.nnn << endl;
         chip8.display.show(pixels);
         pointer+=2;
 
