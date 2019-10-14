@@ -22,7 +22,11 @@ Chip8 chip8;
 
 void LoadFile(string filename, uint8_t* buffer){
     ifstream file;
-    for(file.open(filename, ios::binary); file.good(); ){ *buffer = file.get();  buffer++;}
+    for(file.open(filename, ios::binary); file.good(); ){ 
+        *buffer = file.get();  
+        cout << hex << int(*buffer) << endl;
+        buffer++;
+    }
 }
 
 const string getByteString(uint8_t number){
@@ -61,7 +65,7 @@ void DisplayRegisters(CPU cpu){
     cout << endl << endl << "DT" << "  " << "ST" << "  " << "VF" << "  " << "I" << "     " << "PC" << endl;
     cout << hex << getByteString(cpu.DT) << "  ";
     cout << hex << getByteString(cpu.ST) << "  ";
-    cout << hex << getByteString(cpu.VF) << "  ";
+    cout << hex << getByteString(cpu.V[0xF]) << "  ";
     cout << getByteString(cpu.I) << "  ";
     cout << getByteString(cpu.PC) << endl;
 }
@@ -117,15 +121,29 @@ int main(int argc, char* argv[]){
     while(!quit){
         opcode.inst = cpu.read(chip8.VRAM);
         cpu.execute(opcode);
-
-        DisplayRegisters(cpu);
-        DisplayConsoleMem(&chip8.VRAM[PROGRAM_START], cpu.PC);
-        cout << endl << "Instruction: " << opcode.nnn << endl;
+        //DisplayRegisters(cpu);
+        //DisplayConsoleMem(&chip8.VRAM[PROGRAM_START], cpu.PC);
         chip8.display.show(pixels);
-        pointer+=2;
+        cout << "Instruction: " << hex << opcode.inst;
+        cout << " V1 " <<  hex << int(cpu.V[0x1]);
+        cout << " V2 " <<  hex << int(cpu.V[0x2]);
+        cout << " V3 " <<  hex << int(cpu.V[0x3]);
+        cout << " V4 " <<  hex << int(cpu.V[0x4]);
+        cout << " V5 " <<  hex << int(cpu.V[0x5]);
+        cout << " V6 " <<  hex << int(cpu.V[0x6]);
+        cout << " V7 " <<  hex << int(cpu.V[0x7]);
+        cout << " V8 " <<  hex << int(cpu.V[0x8]);
+        cout << " V9 " <<  hex << int(cpu.V[0x9]);
+        cout << " VA " <<  hex << int(cpu.V[0xA]);
+        cout << " VB " <<  hex << int(cpu.V[0xB]);
+        cout << " VC " <<  hex << int(cpu.V[0xC]);
+        cout << " VD " <<  hex << int(cpu.V[0xD]);
+        cout << " VE " <<  hex << int(cpu.V[0xE]);
+        cout << " VF " <<  hex << int(cpu.V[0xF]) << endl;
 
+        pointer+=2;
         quit = loopPointer();
-        system("clear"); 
+        //system("clear"); 
     }
 
     return 0;

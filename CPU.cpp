@@ -4,18 +4,20 @@ using namespace std;
 
 void CPU::Init(void){
     PC = 0x200; 
-    SP = DT = ST = VF = I = PC = 0;
+    SP = DT = ST = I = PC = 0;
+    memset(V, 0x0, 16 * sizeof(uint8_t));
 }
 
 uint16_t CPU::read(uint8_t *memory){
-    uint16_t opcode = (memory[PC] << 8) + memory[PC+1]; PC+=2;
+    uint16_t opcode = (memory[PC] << 8) + memory[PC+1]; 
+    PC+=2;
     return opcode;
 }
 
 void CPU::inst_0nnn(){}
 
 void CPU::inst_00E0(){
-    memset(pixels, 0xFFFFFFFF, DISPLAY_SIZE * sizeof(Uint32));
+    memset(pixels, 0x0, DISPLAY_SIZE * sizeof(Uint32));
 }
 
 void CPU::inst_00EE(){
@@ -70,27 +72,27 @@ void CPU::inst_8xy3(Opcode opcode){
 
 void CPU::inst_8xy4(Opcode opcode){
     uint16_t sum = V[opcode.x] + V[opcode.y];
-    VF = (sum > 0xFF) ? 1 : 0;
+    V[0xF] = (sum > 0xFF) ? 1 : 0;
     V[opcode.x] = sum & 0xFF;
 }
 
 void CPU::inst_8xy5(Opcode opcode){
-    VF = (V[opcode.x] > V[opcode.y]) ? 1 : 0;
+    V[0xF] = (V[opcode.x] > V[opcode.y]) ? 1 : 0;
     V[opcode.x] = V[opcode.x] - V[opcode.y];
 }
 
 void CPU::inst_8xy6(Opcode opcode){
-    VF = ((V[opcode.x] & 0x01) == 1) ? 1 : 0;
+    V[0xF] = ((V[opcode.x] & 1) == 1) ? 1 : 0;
     V[opcode.x] /= 2;
 }
 
 void CPU::inst_8xy7(Opcode opcode){
-    VF = (V[opcode.y] > V[opcode.x]) ? 1 : 0;
+    V[0xF] = (V[opcode.y] > V[opcode.x]) ? 1 : 0;
     V[opcode.x] = V[opcode.x] - V[opcode.y];
 }
 
 void CPU::inst_8xyE(Opcode opcode){
-    VF = (V[opcode.x] >> 7) ? 1 : 0;
+    V[0xF] = (V[opcode.x] >> 7) ? 1 : 0;
     V[opcode.x] = V[opcode.x] * 2;
 }
 
@@ -116,13 +118,12 @@ void CPU::inst_Dxyn(Opcode opcode){
     uint8_t vx = V[opcode.x] % W;
     for(int index = 0; index < opcode.n; index++){
         uint8_t byte = chip8.VRAM[I + index];
-        cout << hex << int(byte) << ": byte" << endl;
         uint16_t vy = ((V[opcode.y] % H) + index) * W;
         uint16_t spriteIndex = vx + vy;
         for(int pos=0; pos<8; pos++){
             uint8_t bit = (7 - pos % 8);
             Uint32  newPixel = ((byte >> bit) & 0x1) ? 0xFFFFFFFF : 0xFF000000;
-            VF |= (newPixel != pixels[spriteIndex + pos]) ? 1 : 0;
+            V[0xF] |= (newPixel != pixels[spriteIndex + pos]) ? 1 : 0;
             pixels[spriteIndex + pos] = newPixel;
         }
 
@@ -151,6 +152,7 @@ void CPU::inst_Fx18(Opcode opcode){
 }
 void CPU::inst_Fx1E(Opcode opcode){
     I += V[opcode.x];
+    V[0xF] = I > 0xFFF ? 1 : 0;
 }
 void CPU::inst_Fx29(Opcode opcode){
     I = chip8.VRAM - &chip8.font[V[opcode.x]];

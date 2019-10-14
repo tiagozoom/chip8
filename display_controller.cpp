@@ -14,25 +14,3 @@ void DisplayController::show(Uint32* pixels){
     SDL_RenderPresent(renderer);
     SDL_Delay(16);
 }
-
-bool DisplayController::stop(){
-    SDL_Event event;
-    bool is_running;
-    /*while (!quit){
-        SDL_WaitEvent(&event);
-        SDL_Delay(1000);
-        switch(event.type){
-            case SDL_QUIT:
-                quit = 1;
-                exit = 1;
-                break;
-            case SDL_KEYUP:
-                cout << "I'm here" << endl;
-                quit = 1;
-                exit = 0;
-                break;
-        }
-    }*/
-    return false;
-}
-

@@ -7,7 +7,7 @@ class CPU {
     public:
         void Init();
         uint16_t STACK[16];
-        uint8_t V[16], DT, ST, VF, SP;
+        uint8_t V[16], DT, ST, SP;
         uint16_t I, PC;
 
         uint16_t read(uint8_t *memory);
