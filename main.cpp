@@ -24,7 +24,6 @@ void LoadFile(string filename, uint8_t* buffer){
     ifstream file;
     for(file.open(filename, ios::binary); file.good(); ){ 
         *buffer = file.get();  
-        cout << hex << int(*buffer) << endl;
         buffer++;
     }
 }
@@ -102,11 +101,24 @@ bool nonDebug(){
 }
 
 int main(int argc, char* argv[]){
-    uint8_t font_test[0xF*0x5] = { 0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70, 0xF0, 0x10, 0xF0, 0x80, 0xF0, 0xF0, 0x10, 0xF0, 0x10, 0xF0,
-                                   0x90, 0x90, 0xF0, 0x10, 0x10, 0xF0, 0x80, 0xF0, 0x10, 0xF0, 0xF0, 0x80, 0xF0, 0x90, 0xF0, 0xF0, 0x10, 0x20, 0x40, 0x40,
-                                   0xF0, 0x90, 0xF0, 0x90, 0x90, 0xE0, 0x90, 0xE0, 0x90, 0xE0, 0xF0, 0x80, 0x80, 0x80, 0xF0, 0xE0, 0x90, 0x90, 0x90, 0xE0,
-                                   0xF0, 0x80, 0xF0, 0x80, 0xF0, 0xF0, 0x80, 0xF0, 0x80, 0x80 };
-    memcpy(chip8.font, font_test, (0xF*0x5)*sizeof(uint8_t));
+    uint8_t font_test[0x10*0x5] = { 0xF0, 0x90, 0x90, 0x90, 0xF0, //0
+                                   0x20, 0x60, 0x20, 0x20, 0x70, //1
+                                   0xF0, 0x10, 0xF0, 0x80, 0xF0, //2 
+                                   0xF0, 0x10, 0xF0, 0x10, 0xF0, //3
+                                   0x90, 0x90, 0xF0, 0x10, 0x10,  //4
+                                   0xF0, 0x80, 0xF0, 0x10, 0xF0,  //5
+                                   0xF0, 0x80, 0xF0, 0x90, 0xF0,  //6
+                                   0xF0, 0x10, 0x20, 0x40, 0x40, //7
+                                   0xF0, 0x90, 0xF0, 0x90, 0xF0,  //8
+                                   0xF0, 0x90, 0xF0, 0x10, 0xF0,  //9
+                                   0xF0, 0x90, 0xF0, 0x90, 0x90,  //A
+                                   0xE0, 0x90, 0xE0, 0x90, 0xE0, //B
+                                   0xF0, 0x80, 0x80, 0x80, 0xF0, //C
+                                   0xE0, 0x90, 0x90, 0x90, 0xE0, //D
+                                   0xF0, 0x80, 0xF0, 0x80, 0xF0,  //E
+                                   0xF0, 0x80, 0xF0, 0x80, 0x80 }; //F
+    memcpy(chip8.font, font_test, (0x10*0x5)*sizeof(uint8_t));
+    cout << hex << ( &chip8.font[0x6 * 0x5] - chip8.VRAM) << endl;
     CPU cpu;
     cpu.Init();
     chip8.display.Init();
@@ -121,10 +133,11 @@ int main(int argc, char* argv[]){
     while(!quit){
         opcode.inst = cpu.read(chip8.VRAM);
         cpu.execute(opcode);
-        //DisplayRegisters(cpu);
-        //DisplayConsoleMem(&chip8.VRAM[PROGRAM_START], cpu.PC);
+        DisplayRegisters(cpu);
+        DisplayConsoleMem(&chip8.VRAM[PROGRAM_START], cpu.PC);
         chip8.display.show(pixels);
-        cout << "Instruction: " << hex << opcode.inst;
+        /*cout << "Whole instruction: " << hex << opcode.inst << endl;
+        cout << "Instruction: " << hex << opcode.nnn;
         cout << " V1 " <<  hex << int(cpu.V[0x1]);
         cout << " V2 " <<  hex << int(cpu.V[0x2]);
         cout << " V3 " <<  hex << int(cpu.V[0x3]);
@@ -139,10 +152,12 @@ int main(int argc, char* argv[]){
         cout << " VC " <<  hex << int(cpu.V[0xC]);
         cout << " VD " <<  hex << int(cpu.V[0xD]);
         cout << " VE " <<  hex << int(cpu.V[0xE]);
-        cout << " VF " <<  hex << int(cpu.V[0xF]) << endl;
+        cout << " VF " <<  hex << int(cpu.V[0xF]) << endl;*/
 
         pointer+=2;
         quit = loopPointer();
+        
+        cpu.checkDelayTimer();
         //system("clear"); 
     }
 

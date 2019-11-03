@@ -59,4 +59,5 @@ class CPU {
         void inst_Exxx(Opcode opcode);
         void inst_Fxxx(Opcode opcode);
         void execute(Opcode opcode);
+        void checkDelayTimer();
 };

@@ -88,7 +88,7 @@ void CPU::inst_8xy6(Opcode opcode){
 
 void CPU::inst_8xy7(Opcode opcode){
     V[0xF] = (V[opcode.y] > V[opcode.x]) ? 1 : 0;
-    V[opcode.x] = V[opcode.x] - V[opcode.y];
+    V[opcode.x] = V[opcode.y] - V[opcode.x];
 }
 
 void CPU::inst_8xyE(Opcode opcode){
@@ -122,8 +122,8 @@ void CPU::inst_Dxyn(Opcode opcode){
         uint16_t spriteIndex = vx + vy;
         for(int pos=0; pos<8; pos++){
             uint8_t bit = (7 - pos % 8);
-            Uint32  newPixel = ((byte >> bit) & 0x1) ? 0xFFFFFFFF : 0xFF000000;
-            V[0xF] |= (newPixel != pixels[spriteIndex + pos]) ? 1 : 0;
+            Uint32  newPixel = ((byte >> bit) & 0x1) ? 0xFFFFFFFF : 0x00000000;
+            V[0xF] |= (newPixel == pixels[spriteIndex + pos]) ? 1 : 0;
             pixels[spriteIndex + pos] = newPixel;
         }
 
@@ -155,7 +155,7 @@ void CPU::inst_Fx1E(Opcode opcode){
     V[0xF] = I > 0xFFF ? 1 : 0;
 }
 void CPU::inst_Fx29(Opcode opcode){
-    I = chip8.VRAM - &chip8.font[V[opcode.x]];
+    I = &chip8.font[V[opcode.x] * 0x5] - chip8.VRAM;
 }
 void CPU::inst_Fx33(Opcode opcode){
     uint8_t decimalValue = V[opcode.x];
@@ -233,4 +233,8 @@ void CPU::execute(Opcode opcode){
         case 0xF: inst_Fxxx(opcode); break;
         default: cout << "No instruction found." << endl;
     }
+}
+
+void CPU::checkDelayTimer(){
+    DT = DT > 0 ? --DT : 0;
 }

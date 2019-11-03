@@ -8,7 +8,7 @@ typedef union {
     uint8_t VRAM[4096];
     struct{
         DisplayController display;
-        uint8_t font[0xF*0x5];
+        uint8_t font[0x10*0x5];
     };
 } Chip8;
 
