@@ -92,7 +92,7 @@ void CPU::inst_8xy7(Opcode opcode){
 }
 
 void CPU::inst_8xyE(Opcode opcode){
-    V[0xF] = (V[opcode.x] >> 7) ? 1 : 0;
+    V[0xF] = (V[opcode.x] & 0x01) ? 1 : 0;
     V[opcode.x] = V[opcode.x] * 2;
 }
 
@@ -123,7 +123,7 @@ void CPU::inst_Dxyn(Opcode opcode){
         for(int pos=0; pos<8; pos++){
             uint8_t bit = (7 - pos % 8);
             Uint32  newPixel = ((byte >> bit) & 0x1) ? 0xFFFFFFFF : 0x00000000;
-            V[0xF] |= (newPixel == pixels[spriteIndex + pos]) ? 1 : 0;
+            V[0xF] |= (newPixel == 0) ? 1 : 0;
             pixels[spriteIndex + pos] = newPixel;
         }
 
