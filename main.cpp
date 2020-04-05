@@ -71,7 +71,7 @@ void DisplayRegisters(CPU cpu){
 
 void DisplayConsoleMem(uint8_t* VRAM, uint16_t current_address){
     cout << endl << endl;
-    for(int h=0; h<8; h++){
+    for(int h=0; h<16; h++){
         for(int w=0; w<64; w+=2){
             if((w + (h *  W)) % 16 == 0) cout << hex << int(w + (h *  W)) + 0x200<< endl;
             uint8_t byte1 = int(VRAM[w + (h *  W)]); string byteString1 = getByteString(byte1);
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]){
                                    0xF0, 0x80, 0xF0, 0x80, 0xF0,  //E
                                    0xF0, 0x80, 0xF0, 0x80, 0x80 }; //F
     memcpy(chip8.font, font_test, (0x10*0x5)*sizeof(uint8_t));
-    cout << hex << ( &chip8.font[0x6 * 0x5] - chip8.VRAM) << endl;
+    //cout << hex << ( &chip8.font[0x6 * 0x5] - chip8.VRAM) << endl;
     CPU cpu;
     cpu.Init();
     chip8.display.Init();
