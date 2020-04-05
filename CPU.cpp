@@ -59,15 +59,15 @@ void CPU::inst_8xy0(Opcode opcode){
 }
 
 void CPU::inst_8xy1(Opcode opcode){
-    V[opcode.x] = V[opcode.y] | V[opcode.x];
+    V[opcode.x] |= V[opcode.y];
 }
 
 void CPU::inst_8xy2(Opcode opcode){
-    V[opcode.x] = V[opcode.y] & V[opcode.x];
+    V[opcode.x] &= V[opcode.y];
 }
 
 void CPU::inst_8xy3(Opcode opcode){
-    V[opcode.x] = V[opcode.y] ^ V[opcode.x];
+    V[opcode.x] ^= V[opcode.y];
 }
 
 void CPU::inst_8xy4(Opcode opcode){
@@ -78,12 +78,12 @@ void CPU::inst_8xy4(Opcode opcode){
 
 void CPU::inst_8xy5(Opcode opcode){
     V[0xF] = (V[opcode.x] > V[opcode.y]) ? 1 : 0;
-    V[opcode.x] = V[opcode.x] - V[opcode.y];
+    V[opcode.x] -= V[opcode.y];
 }
 
 void CPU::inst_8xy6(Opcode opcode){
-    V[0xF] = ((V[opcode.x] & 1) == 1) ? 1 : 0;
-    V[opcode.x] /= 2;
+    V[0xF] = V[opcode.x] & 1;
+    V[opcode.x] = V[opcode.y] >> 1;
 }
 
 void CPU::inst_8xy7(Opcode opcode){
@@ -92,8 +92,8 @@ void CPU::inst_8xy7(Opcode opcode){
 }
 
 void CPU::inst_8xyE(Opcode opcode){
-    V[0xF] = (V[opcode.x] & 0x01) ? 1 : 0;
-    V[opcode.x] = V[opcode.x] * 2;
+    V[0xF] = V[opcode.x] >> 7;
+    V[opcode.x] = V[opcode.y] << 1;
 }
 
 void CPU::inst_9xy0(Opcode opcode){
