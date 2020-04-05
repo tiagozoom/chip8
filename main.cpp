@@ -71,7 +71,7 @@ void DisplayRegisters(CPU cpu){
 
 void DisplayConsoleMem(uint8_t* VRAM, uint16_t current_address){
     cout << endl << endl;
-    for(int h=0; h<16; h++){
+    for(int h=0; h<8; h++){
         for(int w=0; w<64; w+=2){
             if((w + (h *  W)) % 16 == 0) cout << hex << int(w + (h *  W)) + 0x200<< endl;
             uint8_t byte1 = int(VRAM[w + (h *  W)]); string byteString1 = getByteString(byte1);
